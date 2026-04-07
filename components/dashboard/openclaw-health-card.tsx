@@ -89,6 +89,15 @@ export function OpenClawHealthCard({
               {formatLatency(health.latencyMs)}
             </dd>
           </div>
+
+          <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 sm:col-span-2">
+            <dt className="text-xs uppercase tracking-[0.22em] text-slate-500">
+              Status Text
+            </dt>
+            <dd className="mt-2 text-base font-medium text-slate-100">
+              {health.statusText ?? "Unavailable"}
+            </dd>
+          </div>
         </dl>
 
         <div className="flex flex-col gap-3 border-t border-white/8 pt-4 sm:flex-row sm:items-center sm:justify-between">

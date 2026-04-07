@@ -10,6 +10,8 @@ type RequiredEnvKey =
   | "OPENCLAW_PUBLIC_URL"
   | "OPENCLAW_INTERNAL_URL";
 
+type OptionalEnvKey = "OPENCLAW_HEALTH_URL";
+
 function readRequiredEnv(key: RequiredEnvKey): string {
   const value = process.env[key];
 
@@ -18,6 +20,12 @@ function readRequiredEnv(key: RequiredEnvKey): string {
   }
 
   return value;
+}
+
+function readOptionalEnv(key: OptionalEnvKey): string | undefined {
+  const value = process.env[key]?.trim();
+
+  return value ? value : undefined;
 }
 
 export function getAppEnv(): AppEnv {
@@ -37,10 +45,12 @@ export function getAdminCredentials(): {
 export function getOpenClawUrls(): {
   publicUrl: string;
   internalUrl: string;
+  healthUrl?: string;
 } {
   return {
     publicUrl: readRequiredEnv("OPENCLAW_PUBLIC_URL"),
     internalUrl: readRequiredEnv("OPENCLAW_INTERNAL_URL"),
+    healthUrl: readOptionalEnv("OPENCLAW_HEALTH_URL"),
   };
 }
 

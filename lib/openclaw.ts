@@ -8,21 +8,34 @@ export type OpenClawHealth = {
   checkedAt: string;
   environment: string;
   openclawUrl: string;
+  statusText?: string;
   error?: string;
 };
 
 function getHealthProbeUrl(): string {
-  const { internalUrl } = getOpenClawUrls();
+  const { healthUrl, internalUrl } = getOpenClawUrls();
 
-  return new URL("/", internalUrl).toString();
+  return healthUrl ?? new URL("/health", internalUrl).toString();
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
+function getErrorMessage(): string {
+  return "Unable to reach OpenClaw.";
+}
+
+async function readStatusText(response: Response): Promise<string | undefined> {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (!contentType.includes("application/json")) {
+    return undefined;
   }
 
-  return "Unable to reach OpenClaw.";
+  try {
+    const payload = (await response.json()) as { status?: unknown };
+
+    return typeof payload.status === "string" ? payload.status : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function getOpenClawHealth(): Promise<OpenClawHealth> {
@@ -35,15 +48,15 @@ export async function getOpenClawHealth(): Promise<OpenClawHealth> {
     const response = await fetch(getHealthProbeUrl(), {
       method: "GET",
       cache: "no-store",
-      redirect: "follow",
       signal: AbortSignal.timeout(3000),
       headers: {
-        Accept: "text/html,application/json;q=0.9,*/*;q=0.8",
+        Accept: "application/json,text/plain;q=0.9,*/*;q=0.8",
       },
     });
 
     const latencyMs = Date.now() - startedAt;
-    const reachable = response.status < 500;
+    const statusText = await readStatusText(response);
+    const reachable = response.ok;
 
     return {
       reachable,
@@ -51,16 +64,18 @@ export async function getOpenClawHealth(): Promise<OpenClawHealth> {
       checkedAt,
       environment,
       openclawUrl: publicUrl,
+      statusText,
       error: reachable ? undefined : `OpenClaw responded with HTTP ${response.status}.`,
     };
-  } catch (error) {
+  } catch {
     return {
       reachable: false,
       latencyMs: null,
       checkedAt,
       environment,
       openclawUrl: publicUrl,
-      error: getErrorMessage(error),
+      statusText: undefined,
+      error: getErrorMessage(),
     };
   }
 }

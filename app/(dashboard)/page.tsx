@@ -1,4 +1,5 @@
 import { OpenClawHealthCard } from "@/components/dashboard/openclaw-health-card";
+import { TopStatusBar } from "@/components/dashboard/top-status-bar";
 import { getOpenClawHealth } from "@/lib/openclaw";
 
 import { signOutAdmin } from "./actions";
@@ -34,6 +35,8 @@ export default async function DashboardPage() {
               </button>
             </form>
           </div>
+
+          <TopStatusBar health={health} />
 
           <OpenClawHealthCard health={health} />
         </div>
