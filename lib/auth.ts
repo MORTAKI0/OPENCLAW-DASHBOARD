@@ -32,6 +32,10 @@ export function getAppEnv(): AppEnv {
   return readRequiredEnv("APP_ENV");
 }
 
+export function getNextAuthSecret(): string {
+  return readRequiredEnv("NEXTAUTH_SECRET");
+}
+
 export function getAdminCredentials(): {
   username: string;
   password: string;

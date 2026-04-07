@@ -17,11 +17,16 @@ export function LiveOpenClawHealth({
   initialHealth,
 }: LiveOpenClawHealthProps) {
   const [health, setHealth] = useState(initialHealth);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     let isActive = true;
 
     async function refreshHealth(): Promise<void> {
+      if (isActive) {
+        setIsRefreshing(true);
+      }
+
       try {
         const response = await fetch(HEALTH_ROUTE, {
           method: "GET",
@@ -42,6 +47,10 @@ export function LiveOpenClawHealth({
         }
       } catch {
         // Keep the last known state if a refresh request fails.
+      } finally {
+        if (isActive) {
+          setIsRefreshing(false);
+        }
       }
     }
 
@@ -58,7 +67,7 @@ export function LiveOpenClawHealth({
   return (
     <div className="space-y-8">
       <TopStatusBar health={health} />
-      <OpenClawHealthCard health={health} />
+      <OpenClawHealthCard health={health} isRefreshing={isRefreshing} />
     </div>
   );
 }

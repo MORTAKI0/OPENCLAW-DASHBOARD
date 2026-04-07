@@ -1,12 +1,13 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
-import { verifyAdminCredentials } from "@/lib/auth";
+import { getNextAuthSecret, verifyAdminCredentials } from "@/lib/auth";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/login",
   },
+  secret: getNextAuthSecret(),
   trustHost: true,
   providers: [
     Credentials({
