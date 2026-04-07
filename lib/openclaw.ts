@@ -2,6 +2,10 @@ import "server-only";
 
 import { getAppEnv, getOpenClawUrls } from "@/lib/auth";
 
+const HEALTH_PROBE_TIMEOUT_MS = 3000;
+const DISCONNECTED_STATUS_TEXT = "Unavailable";
+const DISCONNECTED_ERROR_MESSAGE = "OpenClaw is currently unavailable.";
+
 export type OpenClawHealth = {
   reachable: boolean;
   latencyMs: number | null;
@@ -16,10 +20,6 @@ function getHealthProbeUrl(): string {
   const { healthUrl, internalUrl } = getOpenClawUrls();
 
   return healthUrl ?? new URL("/health", internalUrl).toString();
-}
-
-function getErrorMessage(): string {
-  return "Unable to reach OpenClaw.";
 }
 
 async function readStatusText(response: Response): Promise<string | undefined> {
@@ -38,6 +38,22 @@ async function readStatusText(response: Response): Promise<string | undefined> {
   }
 }
 
+function getDisconnectedHealth(args: {
+  checkedAt: string;
+  environment: string;
+  openclawUrl: string;
+}): OpenClawHealth {
+  return {
+    reachable: false,
+    latencyMs: null,
+    checkedAt: args.checkedAt,
+    environment: args.environment,
+    openclawUrl: args.openclawUrl,
+    statusText: DISCONNECTED_STATUS_TEXT,
+    error: DISCONNECTED_ERROR_MESSAGE,
+  };
+}
+
 export async function getOpenClawHealth(): Promise<OpenClawHealth> {
   const startedAt = Date.now();
   const checkedAt = new Date().toISOString();
@@ -48,34 +64,36 @@ export async function getOpenClawHealth(): Promise<OpenClawHealth> {
     const response = await fetch(getHealthProbeUrl(), {
       method: "GET",
       cache: "no-store",
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(HEALTH_PROBE_TIMEOUT_MS),
       headers: {
         Accept: "application/json,text/plain;q=0.9,*/*;q=0.8",
       },
     });
 
+    if (!response.ok) {
+      return getDisconnectedHealth({
+        checkedAt,
+        environment,
+        openclawUrl: publicUrl,
+      });
+    }
+
     const latencyMs = Date.now() - startedAt;
     const statusText = await readStatusText(response);
-    const reachable = response.ok;
 
     return {
-      reachable,
+      reachable: true,
       latencyMs,
       checkedAt,
       environment,
       openclawUrl: publicUrl,
       statusText,
-      error: reachable ? undefined : `OpenClaw responded with HTTP ${response.status}.`,
     };
   } catch {
-    return {
-      reachable: false,
-      latencyMs: null,
+    return getDisconnectedHealth({
       checkedAt,
       environment,
       openclawUrl: publicUrl,
-      statusText: undefined,
-      error: getErrorMessage(),
-    };
+    });
   }
 }
