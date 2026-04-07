@@ -15,7 +15,7 @@ function formatLatency(latencyMs: number | null): string {
 function formatCheckedAt(checkedAt: string): string {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
-    timeStyle: "short",
+    timeStyle: "medium",
   }).format(new Date(checkedAt));
 }
 
