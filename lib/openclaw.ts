@@ -5,6 +5,7 @@ import { getAppEnv, getOpenClawUrls } from "@/lib/auth";
 const HEALTH_PROBE_TIMEOUT_MS = 3000;
 const DISCONNECTED_STATUS_TEXT = "Unavailable";
 const DISCONNECTED_ERROR_MESSAGE = "OpenClaw is currently unavailable.";
+const HEALTH_PROBE_LOG_EVENT = "openclaw_health_probe_failed";
 
 export type OpenClawHealth = {
   reachable: boolean;
@@ -15,6 +16,12 @@ export type OpenClawHealth = {
   statusText?: string;
   error?: string;
 };
+
+type HealthProbeFailureCategory =
+  | "timeout"
+  | "network_error"
+  | "http_error"
+  | "unavailable";
 
 function getHealthProbeUrl(): string {
   const { healthUrl, internalUrl } = getOpenClawUrls();
@@ -54,6 +61,32 @@ function getDisconnectedHealth(args: {
   };
 }
 
+function getFailureCategory(error: unknown): HealthProbeFailureCategory {
+  if (error instanceof Error) {
+    if (error.name === "TimeoutError" || error.name === "AbortError") {
+      return "timeout";
+    }
+
+    return "network_error";
+  }
+
+  return "unavailable";
+}
+
+function logFailedHealthProbe(args: {
+  checkedAt: string;
+  category: HealthProbeFailureCategory;
+  environment: string;
+  status?: number;
+}): void {
+  console.warn(HEALTH_PROBE_LOG_EVENT, {
+    timestamp: args.checkedAt,
+    category: args.category,
+    environment: args.environment,
+    ...(typeof args.status === "number" ? { status: args.status } : {}),
+  });
+}
+
 export async function getOpenClawHealth(): Promise<OpenClawHealth> {
   const startedAt = Date.now();
   const checkedAt = new Date().toISOString();
@@ -71,6 +104,13 @@ export async function getOpenClawHealth(): Promise<OpenClawHealth> {
     });
 
     if (!response.ok) {
+      logFailedHealthProbe({
+        checkedAt,
+        category: "http_error",
+        environment,
+        status: response.status,
+      });
+
       return getDisconnectedHealth({
         checkedAt,
         environment,
@@ -89,7 +129,13 @@ export async function getOpenClawHealth(): Promise<OpenClawHealth> {
       openclawUrl: publicUrl,
       statusText,
     };
-  } catch {
+  } catch (error) {
+    logFailedHealthProbe({
+      checkedAt,
+      category: getFailureCategory(error),
+      environment,
+    });
+
     return getDisconnectedHealth({
       checkedAt,
       environment,
